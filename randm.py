@@ -1,8 +1,16 @@
+import time
 import tweepy
 import settings
 
 class NoResultsException(Exception):
     pass
+
+def throttle(func):
+	def func_wrapper(self, *args, **kwargs):
+		time.sleep(getattr(self, 'throttle_time', 1000) / 1000.0)
+		return func(self, *args, **kwargs)
+
+	return func_wrapper
 
 class CacheManager:
     """
@@ -11,8 +19,7 @@ class CacheManager:
     cache_list = []
 
     def is_cached(self, tweet):
-        return False
-
+        return tweet.id in self.cache_list
 
 class TwitterConnectionManager:
     """
@@ -20,6 +27,7 @@ class TwitterConnectionManager:
     to Twitter
     """
     logged_in = False
+    throttle_time = 200 # milliseconds to throttle between outgoing connections
 
     def __init__(self):
         self.login()
@@ -34,13 +42,16 @@ class TwitterConnectionManager:
 
         return self.api
 
+    @throttle
     def all_tweeted_at(self):
         tweets = self.api.home_timeline()
 
+    @throttle
     def post_reply(self, msg, tweet):
         msg = '@%s %s' % (tweet.author.screen_name, msg)
         self.api.update_status(msg, tweet.id)
 
+    @throttle
     def find_quotes(self, search):
 
         page = 0
@@ -102,7 +113,13 @@ class RandM:
         """
         tweet = self.find_next_quote()
         msg = list(self.ref_gen.quote_map.values())[0]
-        self.post_reply(msg, tweet)
+
+        try:
+            self.post_reply(msg, tweet)
+        except tweepy.error.TweepError as e:
+            if e.api_code == 187:
+                self.connection.cache.cache_list.append(tweet.id)
+                self.mortify()
 
 if __name__ == '__main__':
     randm = RandM()
