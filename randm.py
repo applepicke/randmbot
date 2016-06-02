@@ -65,7 +65,7 @@ class RandMReferenceGenerator:
     Generates phrases and appropriate responses to those phrases
     """
     quote_map = {
-        'What is my purpose?': 'You pass butter'
+        'What is my purpose?': 'You pass butter.'
     }
 
     def __init__(self):
