@@ -1,3 +1,4 @@
+import sys
 import time
 import tweepy
 import settings
@@ -7,8 +8,11 @@ class NoResultsException(Exception):
 
 def throttle(func):
 	def func_wrapper(self, *args, **kwargs):
-		time.sleep(getattr(self, 'throttle_time', 1000) / 1000.0)
-		return func(self, *args, **kwargs)
+		try:
+			return func(self, *args, **kwargs)
+		except tweepy.error.RateLimitError as e:
+			time.sleep(1)
+			return func_wrapper(self, *args, **kwargs)
 
 	return func_wrapper
 
@@ -27,7 +31,6 @@ class TwitterConnectionManager:
     to Twitter
     """
     logged_in = False
-    throttle_time = 200 # milliseconds to throttle between outgoing connections
 
     def __init__(self):
         self.login()
@@ -122,5 +125,8 @@ class RandM:
                 self.mortify()
 
 if __name__ == '__main__':
-    randm = RandM()
-    result = randm.mortify()
+	repeat = int(sys.argv[2] if len(sys.argv) > 2 else 1)
+
+	for i in range(0, repeat):
+	    randm = RandM()
+	    result = randm.mortify()
